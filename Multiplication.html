@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplication Quiz Game</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background-color: #f4f4f9; }
+        .question { font-size: 28px; margin: 20px; color: #333; font-weight: bold; }
+        .correct { color: green; animation: bounce 1s, spin 1s; }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .hidden { display: none; }
+        button { padding: 10px 20px; font-size: 16px; margin-top: 10px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; }
+        button:hover { background-color: #45a049; }
+        #confirmation { color: blue; font-size: 18px; margin-top: 10px; height: 20px; }
+        .loading { font-size: 16px; color: #ff5733; animation: blink 1s infinite; }
+        @keyframes blink {
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <h1 style="color: #ff5733;">Multiplication Quiz Game</h1>
+    <div id="nameEntry">
+        <p>Enter your name to begin:</p>
+        <input type="text" id="firstName" placeholder="First Name">
+        <input type="text" id="lastName" placeholder="Last Name">
+        <button onclick="startGame()">Start</button>
+    </div>
+    
+    <div id="gameArea" class="hidden">
+        <div class="question" id="question"></div>
+        <p>Time: <span id="timer">0</span> seconds</p>
+        <p>Average Time: <span id="avgTime">0</span> seconds</p>
+        <input type="number" id="answer" placeholder="Your answer">
+        <button onclick="checkAnswer()">Submit</button>
+        <p id="feedback"></p>
+        <button onclick="submitData()">Submit Quiz Results</button>
+        <p id="confirmation"></p>
+    </div>
+
+    <script>
+        const factors = [2, 3, 4];
+        let questionPool = [];
+        let lastQuestion = null;
+        let totalTime = 0;
+        let totalQuestions = 0;
+        let studentName = "";
+        let attemptedQuestions = {};
+        let startTime;
+        let timerInterval;
+
+        function startGame() {
+            let firstName = document.getElementById("firstName").value.trim();
+            let lastName = document.getElementById("lastName").value.trim();
+            if (!firstName || !lastName) {
+                alert("Please enter both first and last name.");
+                return;
+            }
+            studentName = `${firstName} ${lastName}`;
+            document.getElementById("nameEntry").classList.add("hidden");
+            document.getElementById("gameArea").classList.remove("hidden");
+            generateQuestions();
+            displayQuestion();
+        }
+
+        function generateQuestions() {
+            questionPool = [];
+            for (let i = 0; i < factors.length; i++) {
+                for (let j = i; j < factors.length; j++) {
+                    questionPool.push([factors[i], factors[j]]);
+                }
+            }
+        }
+
+        function getNewQuestion() {
+            let newQuestion;
+            do {
+                newQuestion = questionPool[Math.floor(Math.random() * questionPool.length)];
+            } while (lastQuestion && (newQuestion[0] === lastQuestion[0] && newQuestion[1] === lastQuestion[1]));
+            lastQuestion = newQuestion;
+            return newQuestion;
+        }
+
+        function displayQuestion() {
+            let [num1, num2] = getNewQuestion();
+            document.getElementById("question").textContent = `${num1} × ${num2} = ?`;
+            document.getElementById("answer").value = "";
+            startTime = Date.now();
+            clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            let elapsed = Math.floor((Date.now() - startTime) / 1000);
+            document.getElementById("timer").textContent = elapsed;
+        }
+
+        function checkAnswer() {
+            clearInterval(timerInterval);
+            let elapsed = Math.floor((Date.now() - startTime) / 1000);
+            totalTime += elapsed;
+            totalQuestions++;
+            document.getElementById("avgTime").textContent = (totalTime / totalQuestions).toFixed(1);
+
+            let [num1, num2] = lastQuestion;
+            let correctAnswer = num1 * num2;
+            let userAnswer = parseInt(document.getElementById("answer").value);
+
+            let feedback = document.getElementById("feedback");
+            if (userAnswer === correctAnswer) {
+                feedback.textContent = "Correct! 🎉";
+                feedback.className = "correct";
+                setTimeout(displayQuestion, 1000);
+            } else {
+                feedback.textContent = `Incorrect. The correct answer is ${correctAnswer}.`;
+                feedback.className = "";
+                setTimeout(displayQuestion, 2000);
+            }
+        }
+
+        function submitData() {
+            let scriptUrl = "https://script.google.com/macros/s/AKfycbzrl_i_fqajrQktZIuBVa05z9OeZvpGTQEJYmg1Jqrn0TKMYfUW9YDCPIx3Ya3jg8PB/exec";
+            let payload = {
+                name: studentName,
+                questions: attemptedQuestions,
+                avgTime: (totalTime / totalQuestions).toFixed(1)
+            };
+
+            let confirmation = document.getElementById("confirmation");
+            confirmation.className = "loading";
+            confirmation.textContent = "Submitting...";
+
+            fetch(scriptUrl, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            }).then(() => {
+                confirmation.className = "";
+                confirmation.textContent = "Quiz results submitted successfully! ✅";
+                setTimeout(resetGame, 3000);
+            }).catch(error => {
+                confirmation.className = "";
+                confirmation.textContent = "Error submitting data. ❌";
+                console.error("Error submitting data:", error);
+            });
+        }
+
+        function resetGame() {
+            document.getElementById("nameEntry").classList.remove("hidden");
+            document.getElementById("gameArea").classList.add("hidden");
+            document.getElementById("firstName").value = "";
+            document.getElementById("lastName").value = "";
+            document.getElementById("confirmation").textContent = "";
+            totalTime = 0;
+            totalQuestions = 0;
+            attemptedQuestions = {};
+        }
+    </script>
+</body>
+</html>
